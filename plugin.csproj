@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net9.0-windows10.0.26100.0</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Platforms>x64;ARM64</Platforms>
     <PlatformTarget>$(Platform)</PlatformTarget>
     <Version>0.96.1</Version>
@@ -10,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Community.PowerToys.Run.Plugin.Dependencies" Version="0.96.1" />
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.2" />
   </ItemGroup>
 
   <ItemGroup>

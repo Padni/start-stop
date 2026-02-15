@@ -5,8 +5,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Forms = System.Windows.Forms;
+using System.Drawing;
+using Microsoft.Toolkit.Uwp.Notifications;
+using Windows.UI.Notifications;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
 
@@ -56,6 +61,48 @@ public class Main : IPlugin, IContextMenu, IDisposable
             var cmd = parts[1].ToLowerInvariant();
             if (cmd == "start")
             {
+                // optional timer parameter: mail start 8h or mail start 00:35 or mail start 8
+                TimeSpan? timer = null;
+                if (parts.Length >= 3)
+                {
+                    var param = parts[2].Trim();
+                    Log.Info($"Timer parameter received: '{param}'", GetType());
+                    // hours with trailing 'h'
+                    if (param.EndsWith("h", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (double.TryParse(param.Substring(0, param.Length - 1), out var hours))
+                        {
+                            timer = TimeSpan.FromHours(hours);
+                            Log.Info($"Parsed as hours: {hours}", GetType());
+                        }
+                        else
+                        {
+                            Log.Info($"Failed to parse hours from '{param}'", GetType());
+                        }
+                    }
+                    else if (param.Contains(":") && TimeSpan.TryParse(param, out var ts))
+                    {
+                        // handles HH:MM or H:MM etc
+                        timer = ts;
+                        Log.Info($"Parsed as timespan: {ts}", GetType());
+                    }
+                    else if (double.TryParse(param, out var hoursOnly))
+                    {
+                        timer = TimeSpan.FromHours(hoursOnly);
+                        Log.Info($"Parsed numeric hours: {hoursOnly}", GetType());
+                    }
+                    else
+                    {
+                        Log.Info($"Could not parse timer parameter '{param}'", GetType());
+                    }
+                }
+
+                var subtitle = "Send start notification via Outlook";
+                if (timer.HasValue)
+                {
+                    subtitle += $" (timer {timer.Value})";
+                }
+
                 return new List<Result>
                 {
                     new Result
@@ -63,7 +110,7 @@ public class Main : IPlugin, IContextMenu, IDisposable
                         QueryTextDisplay = search,
                         IcoPath = IconPath,
                         Title = "Send start mail",
-                        SubTitle = "Send start notification via Outlook",
+                        SubTitle = subtitle,
                         Action = _ =>
                         {
                             try
@@ -76,6 +123,12 @@ public class Main : IPlugin, IContextMenu, IDisposable
                             catch (Exception ex)
                             {
                                 Log.Error($"Error sending start mail: {ex}", GetType());
+                            }
+
+                            if (timer.HasValue && timer.Value > TimeSpan.Zero)
+                            {
+                                Log.Info($"Scheduling notification in {timer.Value}", GetType());
+                                ScheduleNotification(timer.Value, "Timer ended", $"{timer.Value} has elapsed");
                             }
 
                             return true;
@@ -238,7 +291,12 @@ public class Main : IPlugin, IContextMenu, IDisposable
         Context = context ?? throw new ArgumentNullException(nameof(context));
         Context.API.ThemeChanged += OnThemeChanged;
         UpdateIconPath(Context.API.GetCurrentTheme());
-    }
+
+        // subscribe to activation events so we log when a toast is clicked
+        ToastNotificationManagerCompat.OnActivated += args =>
+        {
+            Log.Info($"Toast activated: {args.Argument}", GetType());
+        };    }
 
     /// <summary>
     /// Return a list context menu entries for a given <see cref="Result"/> (shown at the right side of the result).
@@ -299,5 +357,81 @@ public class Main : IPlugin, IContextMenu, IDisposable
 
     private void UpdateIconPath(Theme theme) => IconPath = theme == Theme.Light || theme == Theme.HighContrastWhite ? "Images/plugin.light.png" : "Images/plugin.dark.png";
 
+    /// <summary>
+    /// Schedule a toast notification after a delay. Windows will deliver the toast even
+    /// if the plugin process exits, so we don't need a background worker.
+    /// </summary>
+    private static void ScheduleNotification(TimeSpan delay, string title, string message)
+    {
+        try
+        {
+            // first show a brief confirmation toast so that Windows understands our
+            // app and permissions; this also gives immediate feedback to the user.
+            try
+            {
+                new ToastContentBuilder()
+                    .AddText("Timer scheduled")
+                    .AddText($"Will notify in {delay}")
+                    .Show();
+            }
+            catch
+            {
+                // swallow - not critical if toast can't display now
+            }
+
+            var due = DateTimeOffset.Now.Add(delay);
+            Log.Info($"Scheduling toast for {due} (delay {delay})", typeof(Main));
+
+            var content = new ToastContentBuilder()
+                .AddText(title)
+                .AddText(message)
+                .GetToastContent();
+
+            var scheduled = new ScheduledToastNotification(content.GetXml(), due);
+            // use compatibility helper so the toolkit can register a temporary AUMID
+            ToastNotificationManagerCompat.CreateToastNotifier().AddToSchedule(scheduled);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"ScheduleNotification error: {ex}", typeof(Main));
+        }
+    }
+
+    private static void ShowNotification(string title, string message)
+    {
+        Log.Info($"Attempting to show notification: {title} - {message}", typeof(Main));
+        try
+        {
+            new ToastContentBuilder()
+                .AddText(title)
+                .AddText(message)
+                .Show();
+            return;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"ToastContentBuilder.Show() failed: {ex}", typeof(Main));
+        }
+
+        // if toast fails for any reason, fall back to tray balloon
+        try
+        {
+            using var notify = new Forms.NotifyIcon
+            {
+                Icon = SystemIcons.Information,
+                Visible = true
+            };
+
+            notify.ShowBalloonTip(5000, title, message, Forms.ToolTipIcon.Info);
+            Task.Delay(6000).ContinueWith(_ => notify.Dispose());
+        }
+        catch (Exception ex2)
+        {
+            Log.Error($"NotifyIcon fallback failed: {ex2}", typeof(Main));
+        }
+    }
+
+
     private void OnThemeChanged(Theme currentTheme, Theme newTheme) => UpdateIconPath(newTheme);
 }
+
