@@ -1,0 +1,14 @@
+{
+  "ID": "A8F26C057BF74EF6B722F7FE13EC138D",
+  "ActionKeyword": "plugin",
+  "IsGlobal": false,
+  "Name": "plugin",
+  "Author": "dbrzostek",
+  "Version": "0.96.1",
+  "Language": "csharp",
+  "Website": "https://github.com/Padni/start-stop",
+  "ExecuteFileName": "plugin.dll",
+  "IcoPathDark": "Images\\plugin.dark.png",
+  "IcoPathLight": "Images\\plugin.light.png",
+  "DynamicLoading": false
+}

@@ -1,0 +1,9 @@
+{
+  "Recipients": [
+    "recipient1@example.com",
+    "recipient2@example.com"
+  ],
+  "SubjectPrefix": "PF&DPT -",
+  "StartBody": "Rozpoczynam świadczenie usług",
+  "StopBody": "Zakończyłem świadczenie usług"
+}
