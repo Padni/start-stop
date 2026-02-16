@@ -6,11 +6,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Platforms>x64;ARM64</Platforms>
     <PlatformTarget>$(Platform)</PlatformTarget>
-    <Version>0.96.1</Version>
+    <Version>0.96.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Community.PowerToys.Run.Plugin.Dependencies" Version="0.96.1" />
+    <PackageReference Include="Community.PowerToys.Run.Plugin.Dependencies" Version="0.93.0" />
     <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.2" />
   </ItemGroup>
 

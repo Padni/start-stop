@@ -4,7 +4,7 @@
   "IsGlobal": false,
   "Name": "plugin",
   "Author": "dbrzostek",
-  "Version": "0.96.1",
+  "Version": "0.96.0",
   "Language": "csharp",
   "Website": "https://github.com/Padni/start-stop",
   "ExecuteFileName": "plugin.dll",
